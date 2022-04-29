@@ -170,7 +170,6 @@ class Node(Process):
             result = ""
             faulty_nodes = int(self.state == F)
             decisions = Counter()
-            decisions[self.primary_order] += 1
 
             for neighbour in sorted(self.neighbours):
                 conn = rpyc.connect("localhost", neighbour)
@@ -187,12 +186,12 @@ class Node(Process):
                 majority = decisions.most_common(1)[0][0]
                 non_faulty = decisions.most_common(1)[0][1]
 
-            result = f"G{self.id}, primary, majority={majority}, state={self.state}\n" + result
+            result = f"G{self.id}, primary, majority={self.primary_order}, state={self.state}\n" + result
 
             _plural = "s" * int(faulty_nodes != 1)
             _total_nodes = len(self.neighbours) + 1
 
-            if _total_nodes < 3*faulty_nodes + 1:
+            if _total_nodes < 3*faulty_nodes + 1 or _total_nodes == 1:
                 result += f"\nExecute order: cannot be determined - not enough generals in the system! {faulty_nodes} faulty node{_plural} in the system - {_total_nodes-1} out of {_total_nodes} quorum not consistent"
             else:
                 result += f"\nExecute order: {majority}! {faulty_nodes} faulty node{_plural} in the system - {max(non_faulty-faulty_nodes,0)} out of {_total_nodes} quorum suggest {majority}"
