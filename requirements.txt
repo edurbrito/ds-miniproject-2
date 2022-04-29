@@ -1,0 +1,5 @@
+autopep8==1.6.0
+plumbum==1.7.2
+pycodestyle==2.8.0
+rpyc==5.1.0
+toml==0.10.2
