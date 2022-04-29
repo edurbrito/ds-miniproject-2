@@ -11,6 +11,12 @@ from rpc import RPCService
 
 
 class Node(Process):
+    """
+    Represents a general. It runs as an isolated process,
+    child of the main process, and exposes a multithreaded 
+    RPC service for handling concurrent connections
+    """
+
     def __init__(self, port, neighbours, primary) -> None:
         super().__init__()
         self.id = port - PORT
@@ -30,6 +36,13 @@ class Node(Process):
         return f"G{self.id}, {role}, state={self.state}"
 
     def set_neighbours(self, neighbours):
+        """
+        Sets the node neighbours for communicating
+        during the quorum activity. If the primary,
+        it sets its neighbours first, then sends the
+        order for the secondaries to do the same
+        """
+
         self.neighbours = set(neighbours)
         if self.port in self.neighbours:
             self.neighbours.remove(self.port)
@@ -41,6 +54,11 @@ class Node(Process):
                 conn.close()
 
     def get_free_neighbours_ids(self, n):
+        """
+        If the primary, it searches for available ids
+        for the <n> new nodes to take when joining the quorum
+        """
+
         if self.id == self.primary:
             _neighbours = [neighbour-PORT for neighbour in self.neighbours]
             _neighbours.append(self.id)
@@ -56,6 +74,11 @@ class Node(Process):
         return []
 
     def add_neighbours(self, neighbours):
+        """
+        If the primary, it adds the newly joined neighbours
+        and advertises them to the secondaries
+        """
+
         if self.id == self.primary:
             for neighbour in neighbours:
                 if neighbour + PORT not in self.neighbours:
@@ -65,6 +88,11 @@ class Node(Process):
         return f"Could not add {len(neighbours)} new generals..."
 
     def remove_neighbour(self, node_id):
+        """
+        If the primary, it removes the killed neighbour
+        and advertises it to the secondaries
+        """
+
         if self.id == self.primary and len(self.neighbours) > 1 and node_id + PORT in self.neighbours:
             self.neighbours.remove(node_id + PORT)
             self.set_neighbours(self.neighbours)
@@ -72,6 +100,12 @@ class Node(Process):
         return f"Could not kill general {node_id}..."
 
     def set_state(self, node_id, state):
+        """
+        Sets the state of the node with the given id. 
+        If the called node is the primary, it will 
+        forward the operation to the targeted node
+        """
+
         if state != NF and state != F:
             return f"Could not set state {state} for general {node_id}..."
         if node_id == self.id:
@@ -85,6 +119,11 @@ class Node(Process):
         return f"Could not set state {state} for general {node_id}..."
 
     def get_state(self):
+        """
+        Gets the node state. If the called node is the primary, 
+        it will query the state of all the nodes
+        """
+
         result = [str(self)]
         if self.id == self.primary:
             for neighbour in sorted(self.neighbours):
@@ -94,6 +133,12 @@ class Node(Process):
         return "\n".join(result)
 
     def set_primary(self, primary):
+        """
+        Sets the primary node. If the called node is 
+        the current primary, it will forward the operation
+        to all the nodes in the quorum
+        """
+
         self.primary = primary
         if self.id == primary:
             for neighbour in self.neighbours:
@@ -105,6 +150,12 @@ class Node(Process):
         return True
 
     def execute_order(self, order):
+        """
+        If the primary, it will execute the algorithm
+        by communicating with and querying the quorum,
+        returning the final output
+        """
+
         if self.id == self.primary:
 
             self.primary_order = order
@@ -150,6 +201,12 @@ class Node(Process):
         return ""
 
     def set_primary_order(self, order):
+        """
+        If not the primary, it will set the
+        received primary order, based on the state,
+        to then be forwarded to the rest of the quorum
+        """
+
         if self.id != self.primary:
             if self.state == F:
                 order = "attack" if random.randint(0, 1) else "retreat"
@@ -158,6 +215,12 @@ class Node(Process):
         return False
 
     def query_neighbours(self):
+        """
+        If not the primary, it will exchange
+        messages with the quorum neighbours to
+        calculate the majority
+        """
+
         if self.id != self.primary:
             decisions = Counter()
             decisions[self.primary_order] += 1

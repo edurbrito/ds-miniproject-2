@@ -31,6 +31,11 @@ class Command():
 
 
 class ActualOrderCommand(Command):
+    """
+    Proposes an order to the primary which will
+    query the quorum and return the final decision
+    """
+
     def __init__(self):
         super().__init__(
             "actual-order",
@@ -55,6 +60,10 @@ class ActualOrderCommand(Command):
 
 
 class GStateIdCommand(Command):
+    """
+    Sets the state (faulty or non-faulty) of a given general
+    """
+
     def __init__(self):
         super().__init__(
             "g-state",
@@ -83,6 +92,11 @@ class GStateIdCommand(Command):
 
 
 class GStateCommand(Command):
+    """
+    Returns the information about the entire system,
+    meaning, the generals, their roles and state
+    """
+
     def __init__(self):
         super().__init__(
             "g-state",
@@ -101,6 +115,12 @@ class GStateCommand(Command):
 
 
 class GKillCommand(Command):
+    """
+    Kills a given general. If killing the primary, it assigns
+    a new primary to lead the quorum. Also removes the killed 
+    general from the list of neighbours of all the nodes
+    """
+
     def __init__(self, nodes):
         super().__init__(
             "g-kill",
@@ -122,6 +142,10 @@ class GKillCommand(Command):
 
         n = int(params[0])
 
+        if n == primary and len(self.nodes) < 2:
+            print(f"Could not kill primary with id {n}...")
+            return
+
         set_new_primary = False
         if n == primary:
             for node in sorted(self.nodes):
@@ -134,7 +158,7 @@ class GKillCommand(Command):
                 return
 
         conn = rpyc.connect("localhost", primary + PORT)
-        if set_new_primary: 
+        if set_new_primary:
             print(conn.root.set_primary(primary))
         else:
             print(conn.root.remove_neighbour(n))
@@ -147,6 +171,11 @@ class GKillCommand(Command):
 
 
 class GAddCommand(Command):
+    """
+    Adds a new set of generals to the quorum, with new 
+    unique ids. Also adds them as neighbours to all the nodes
+    """
+
     def __init__(self, nodes):
         super().__init__(
             "g-add",
@@ -168,18 +197,22 @@ class GAddCommand(Command):
 
         N = int(params[0])
         conn = rpyc.connect("localhost", primary + PORT)
-        neighbours = conn.root.get_free_neighbours_ids(N)
+        neighbours_ids = conn.root.get_free_neighbours_ids(N)
 
-        for n in neighbours:
+        for n in neighbours_ids:
             node = Node(PORT + n, set(), primary)
             self.nodes[n] = node
             node.start()
 
-        print(conn.root.add_neighbours(neighbours))
+        print(conn.root.add_neighbours(neighbours_ids))
         conn.close()
 
 
 class ExitCommand(Command):
+    """
+    Exits the program, terminating all processes
+    """
+
     def __init__(self, nodes):
         super().__init__(
             "exit",
